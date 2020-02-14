@@ -1,4 +1,4 @@
-FROM 10.72.8.172:5000/e-autumn-template:1.4
+FROM registry.cn-beijing.aliyuncs.com/beijing-deployment/executor-core
 WORKDIR /root
 COPY . .
 RUN python3.7 -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
