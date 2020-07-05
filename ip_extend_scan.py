@@ -8,14 +8,14 @@ import time
 from pmasscan import Masscan
 import traceback
 
-
 service = executor.Executor()
 
-def do_scan(ips,ports,speed):
+
+def do_scan(ips, ports, speed):
     try:
         # 临时输出文件
         output = "temp.txt"
-        #masscn的路径  需要配置
+        # masscn的路径  需要配置
         task = Masscan("bin/masscan")
         # masscan扫描配置
         for aip in ips:
@@ -44,7 +44,7 @@ def do_scan(ips,ports,speed):
         # 循环读取文件获取状态
         old_percent = -1
         while True:
-            #print("提取进度信息")
+            # print("提取进度信息")
             # 提取进度信息
             outf = open(output, "rb+")
             lines = outf.read().decode().replace("\r", "").replace(" ", "")
@@ -54,10 +54,10 @@ def do_scan(ips,ports,speed):
             else:
                 percent = int(float(lines[k1 + 6:k1 + 10]))
 
-            #print("更新任务状态")
+            # print("更新任务状态")
             # 更新任务状态
             if old_percent != percent:
-                #print("Process:" + str(percent) + "%")
+                # print("Process:" + str(percent) + "%")
                 old_percent = percent
                 if percent == 100:
                     time.sleep(20)
@@ -69,7 +69,7 @@ def do_scan(ips,ports,speed):
         f.close()
     except Exception as err:
         print("Error in scanning:", exc_info=True)
-        return {}, "Error in scanning:"+str(err)
+        return {}, "Error in scanning:" + str(err)
     try:
         data = {}
         print("从结果文件中提取数据")
@@ -89,11 +89,11 @@ def do_scan(ips,ports,speed):
         print("删除结果文件:" + time_num + ".result")
         os.remove(time_num + ".result")
         # 删除结果文件
-        print("扫描结果",data)
+        print("扫描结果", data)
         return data, ""
     except Exception as err:
         traceback.prine_exc()
-        return data, "Error when extracting results:"+str(err)
+        return data, "Error when extracting results:" + str(err)
 
 
 def ipv4_filter(item):
@@ -105,16 +105,20 @@ def ipv4_filter(item):
     else:
         return False
 
-#定义执行器所能接收的数据类型,data为list
-#ip列表
+
+# 定义执行器所能接收的数据类型,data为list
+# ip列表
 '''
 ["12.24.21.45","12.24.15.24"...]
 '''
+
+
 @service.preprocess("ip", timeout=2)
 def preprocess_for_ip(data, config):
     return data
 
-#处理ip集合的函数
+
+# 处理ip集合的函数
 '''
 输入为["12.24.21.45","12.24.15.24"...]
 输出为[
@@ -124,49 +128,52 @@ def preprocess_for_ip(data, config):
     },{}...
 ]
 '''
+
+
 @service.handle_all_inputs(timeout=50)
-def handle_ips(inputs,config): 
-    default_ports = [80, 67, 68, 110, 25, 20, 21, 69, 53, 137,
-                         138, 139, 119, 161, 135, 8000, 4000, 23, 443, 1080, 1024]
+def handle_ips(inputs, config):
+    default_ports = [21, 22, 23, 25, 80, 110, 111, 135, 139, 443, 445, 1080, 5900, 3389, 8000, 8080, 3306, 1433, 1521,
+                     5432, 6379, 27017]
     ports = config.get("port", default_ports)
     speed = config.get("speed", 2000)
-    ips=[]
+    ips = []
     for item in inputs:
-        temp=ipv4_filter(item)
+        temp = ipv4_filter(item)
         if temp:
             ips.append(temp)
     print("The real input:")
     print(ips)
 
-    #构造输出的格式
-    temp_return=[]
+    # 构造输出的格式
+    temp_return = []
     for item in ips:
-        temp_one={}
-        temp_one["ip"]=item
-        temp_one["port_info"]={}
+        temp_one = {}
+        temp_one["ip"] = item
+        temp_one["port_info"] = {}
         temp_return.append(temp_one)
 
     data, error_info = do_scan(ips, ports, speed)
     print("data:")
     print(data)
     for ip in data:
-        for i in range(0,len(ips)):
+        for i in range(0, len(ips)):
             if ip[:ip.rfind(".")] == ips[i][:ips[i].rfind(".")]:
-                #data[ip]扫描结果不为空 而且之前没有ip的扫描记录
+                # data[ip]扫描结果不为空 而且之前没有ip的扫描记录
                 if ip not in temp_return[i]["port_info"] and len(data[ip]):
-                    temp_return[i]["port_info"][ip]=data[ip]
+                    temp_return[i]["port_info"][ip] = data[ip]
                 else:
-                    temp_return[i]["port_info"][ip]=temp_return[i]["port_info"][ip]+data[ip]
+                    temp_return[i]["port_info"][ip] = temp_return[i]["port_info"][ip] + data[ip]
     if error_info:
         print("Something wrong while gaining ip scan result")
-    final_return=[]
+    final_return = []
     for item in temp_return:
-        #除去port_info为空的ip端口信息
+        # 除去port_info为空的ip端口信息
         if item["port_info"]:
             final_return.append(item)
     print("Final return for scan:")
     print(final_return)
     return final_return
+
 
 # @sv.handle_input_items(time_out=50)
 # def ips_scan(input_items, config):
@@ -174,7 +181,7 @@ def handle_ips(inputs,config):
 #                          138, 139, 119, 161, 135, 8000, 4000, 23, 443, 1080, 1024]
 #     ports = config.get("port", default_ports)
 #     ips=[]
-    
+
 #     input_items = list(map(ipv4_filter, input_items))
 #     sv.logger.debug("#####")
 #     sv.logger.debug(input_items)
@@ -203,7 +210,7 @@ def handle_ips(inputs,config):
 #     sv.logger.debug(input_items)
 #     return input_items
 
-#后处理，获取开放了443端口的ip列表
+# 后处理，获取开放了443端口的ip列表
 @service.afterprocess("ip", timeout=2)
 def afterprocess_to_ip1(data, config):
     '''
@@ -216,18 +223,19 @@ def afterprocess_to_ip1(data, config):
     输出为
     ["10.24.24.12","12.21.21.21"...]开放了443端口的ip列表
     '''
-    final_return=[]
+    final_return = []
     for item in data:
-        temp_data=item["port_info"]
+        temp_data = item["port_info"]
         for port_info in temp_data:
             if 443 in temp_data[port_info]:
                 final_return.append(port_info)
-    
+
     print("The ips of open 443 port")
     print(final_return)
     return final_return
 
-#后处理，存入数据库中的信息
+
+# 后处理，存入数据库中的信息
 @service.afterprocess("ip-scan", timeout=2)
 def afterprocess_to_ip2(data, config):
     '''
@@ -243,24 +251,24 @@ def afterprocess_to_ip2(data, config):
         },{}...
     ]  ip和它开放的端口信息
     '''
-    final_return=[]
+    final_return = []
     for item in data:
-        temp_data=item["port_info"]
+        temp_data = item["port_info"]
         for port_info in temp_data:
-            #去掉可能空的列表
+            # 去掉可能空的列表
             if len(temp_data[port_info]):
-                single_return={}
-                single_return["ip"]=port_info
-                single_return["ports"]=temp_data[port_info]
+                single_return = {}
+                single_return["ip"] = item
+                single_return["new_ip"] = port_info
+                single_return["ports"] = temp_data[port_info]
                 final_return.append(single_return)
     print("The result for db from ip scan")
     print(final_return)
     return final_return
 
 
-#run service
+# run service
 service.reset_cmd()
-
 
 # @sv.to_next(name="443_ips")
 # def to_next1(deal_data):
@@ -273,7 +281,7 @@ service.reset_cmd()
 #     temp_data = deal_data["output"][0]
 #     sv.logger.error(
 #         "======================== 443_IPS ==========================")
-    
+
 #     final_return=[]
 #     for item in temp_data:
 #         if 443 in temp_data[item]:
