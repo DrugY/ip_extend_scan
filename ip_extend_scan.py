@@ -141,130 +141,33 @@ def handle_ips(inputs, config):
         temp = ipv4_filter(item)
         if temp:
             ips.append(temp)
-    print("The real input:")
-    print(ips)
 
     # 构造输出的格式
-    temp_return = []
-    for item in ips:
-        temp_one = {}
-        temp_one["ip"] = item
-        temp_one["port_info"] = {}
-        temp_return.append(temp_one)
+    ip_match = {ip[:ip.rfind(".")]:ip for ip in ips}
 
     data, error_info = do_scan(ips, ports, speed)
-    print("data:")
-    print(data)
-    for ip in data:
-        for i in range(0, len(ips)):
-            if ip[:ip.rfind(".")] == ips[i][:ips[i].rfind(".")]:
-                # data[ip]扫描结果不为空 而且之前没有ip的扫描记录
-                if ip not in temp_return[i]["port_info"] and len(data[ip]):
-                    temp_return[i]["port_info"][ip] = data[ip]
-                else:
-                    temp_return[i]["port_info"][ip] = temp_return[i]["port_info"][ip] + data[ip]
-    if error_info:
-        print("Something wrong while gaining ip scan result")
-    final_return = []
-    for item in temp_return:
-        # 除去port_info为空的ip端口信息
-        if item["port_info"]:
-            final_return.append(item)
-    print("Final return for scan:")
-    print(final_return)
-    return final_return
+    result=[]
+    for item in data:
+        if data[item] and item != ip_match[item[:item.rfind(".")]]:
+            result.append({
+                "new_ip":item,
+                "ip":ip_match[item[:item.rfind(".")]],
+                "ports":data[item]
+            })
+    return result
 
 
-# @sv.handle_input_items(time_out=50)
-# def ips_scan(input_items, config):
-#     default_ports = [80, 67, 68, 110, 25, 20, 21, 69, 53, 137,
-#                          138, 139, 119, 161, 135, 8000, 4000, 23, 443, 1080, 1024]
-#     ports = config.get("port", default_ports)
-#     ips=[]
-
-#     input_items = list(map(ipv4_filter, input_items))
-#     sv.logger.debug("#####")
-#     sv.logger.debug(input_items)
-#     for item in input_items:
-#         if item["error_info"] is None:
-#             ips.append(item["input"])
-#     speed = config.get("speed", 2000)
-#     data, error_info = do_scan(ips, ports, speed)
-#     sv.logger.debug("data:")
-#     sv.logger.debug(data)
-#     for ip in data:
-#         for item in input_items:
-#             if ip[:ip.rfind(".")] == item["input"][:item["input"].rfind(".")]:
-#                 if item["output"] is None:
-#                     item["output"]=[]
-#                     item["output"].append(dict())
-#                 else:
-#                     if ip not in item["output"][0]:
-#                         item["output"][0][ip]=data[ip]
-#                     else:
-#                         item["output"][0][ip]=item["output"][0][ip]+data[ip]
-#     if error_info:
-#         for item in input_items:
-#             item["error_info"] = error_info
-#     sv.logger.debug("========return========")
-#     sv.logger.debug(input_items)
-#     return input_items
 
 # 后处理，获取开放了443端口的ip列表
 @service.afterprocess("ip", timeout=2)
 def afterprocess_to_ip1(data, config):
-    '''
-    输入为[
-        {
-            "ip":,
-            "port_info":{"124.2.1,6":[12,45],"124.2.1.5":[12,212]}
-        },{}...
-    ]
-    输出为
-    ["10.24.24.12","12.21.21.21"...]开放了443端口的ip列表
-    '''
-    final_return = []
-    for item in data:
-        temp_data = item["port_info"]
-        for port_info in temp_data:
-            if 443 in temp_data[port_info]:
-                final_return.append(port_info)
-
-    print("The ips of open 443 port")
-    print(final_return)
-    return final_return
+    return [item["new_ip"] for item in data if 443 in item["ports"]]
 
 
 # 后处理，存入数据库中的信息
 @service.afterprocess("ip-scan", timeout=2)
 def afterprocess_to_ip2(data, config):
-    '''
-    输入为[
-        {
-            "ip":,
-            "port_info":{"124.2.1,6":[12,45],"124.2.1.5":[12,212]}
-        },{}...
-    ]
-    输出为[{
-            "ip":,
-            "ports":[]
-        },{}...
-    ]  ip和它开放的端口信息
-    '''
-    final_return = []
-    for item in data:
-        temp_data = item["port_info"]
-        for port_info in temp_data:
-            # 去掉可能空的列表
-            if len(temp_data[port_info]):
-                single_return = {}
-                single_return["ip"] = item
-                single_return["new_ip"] = port_info
-                single_return["ports"] = temp_data[port_info]
-                final_return.append(single_return)
-    print("The result for db from ip scan")
-    print(final_return)
-    return final_return
+    return data
 
 
 # run service
